@@ -1,0 +1,6 @@
+{
+  "name": "Monopoly Grand Tabletop",
+  "description": "Classic 2D Monopoly board game with all 8 silver tokens, complete official rules, tabletop money stacks, Chance and Community Chest decks, and a dynamic turn-by-turn, move-by-move Action Cam.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

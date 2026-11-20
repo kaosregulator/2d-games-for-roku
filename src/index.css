@@ -1,0 +1,444 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: 'Cinzel', Georgia, serif;
+    --font-board: 'Oswald', 'Arial Narrow', sans-serif;
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: var(--font-sans);
+    background-color: #140e0b;
+    color: #f5efe6;
+    user-select: none;
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-board {
+  font-family: var(--font-board);
+}
+
+.font-mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes tokenHop {
+  0% {
+    transform: translate(-50%, -50%) translateY(0) scale(1);
+  }
+  45% {
+    transform: translate(-50%, -50%) translateY(-16px) scale(1.18);
+  }
+  100% {
+    transform: translate(-50%, -50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes diceRoll {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(110deg) scale(1.16) translateY(-10px);
+  }
+  50% {
+    transform: rotate(230deg) scale(0.96) translateY(3px);
+  }
+  75% {
+    transform: rotate(320deg) scale(1.08) translateY(-5px);
+  }
+  100% {
+    transform: rotate(360deg) scale(1) translateY(0);
+  }
+}
+
+@keyframes cardPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.84) rotateY(-24deg) translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotateY(0deg) translateY(0);
+  }
+}
+
+@keyframes billFly {
+  0% {
+    opacity: 0;
+    transform: translate(var(--from-x), var(--from-y)) scale(0.75) rotate(-14deg);
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--to-x), var(--to-y)) scale(0.95) rotate(10deg);
+  }
+}
+
+@keyframes spotlightRing {
+  0%, 100% {
+    opacity: 0.95;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.035);
+  }
+}
+
+.animate-token-hop {
+  animation: tokenHop 190ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.animate-dice-roll {
+  animation: diceRoll 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-card-pop {
+  animation: cardPopIn 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-bill-fly {
+  animation: billFly 760ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-spotlight {
+  animation: spotlightRing 1.4s ease-in-out infinite;
+}
+
+@keyframes splashRipple {
+  0% {
+    transform: scale(0.25);
+    opacity: 0.95;
+  }
+  60% {
+    opacity: 0.65;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+@keyframes splashPlume {
+  0% {
+    transform: translateY(4px) scale(0.35);
+    opacity: 0.95;
+  }
+  45% {
+    transform: translateY(-10px) scale(1.15);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(2px) scale(1.45);
+    opacity: 0;
+  }
+}
+
+@keyframes hitBurst {
+  0% {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  40% {
+    transform: scale(1.38);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes explosionFlash {
+  0% {
+    transform: scale(0.2) rotate(0deg);
+    opacity: 1;
+  }
+  30% {
+    transform: scale(1.65) rotate(18deg);
+    opacity: 0.98;
+  }
+  65% {
+    transform: scale(2.05) rotate(32deg);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.4) rotate(45deg);
+    opacity: 0;
+  }
+}
+
+@keyframes explosionRing {
+  0% {
+    transform: scale(0.25);
+    opacity: 0.95;
+  }
+  100% {
+    transform: scale(2.35);
+    opacity: 0;
+  }
+}
+
+@keyframes smokeRise {
+  0% {
+    transform: translate3d(0, 2px, 0) scale(0.45);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.72;
+  }
+  65% {
+    transform: translate3d(4px, -14px, 0) scale(1.15);
+    opacity: 0.45;
+  }
+  100% {
+    transform: translate3d(-3px, -26px, 0) scale(1.65);
+    opacity: 0;
+  }
+}
+
+@keyframes smokeRiseAlt {
+  0% {
+    transform: translate3d(0, 3px, 0) scale(0.4);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.65;
+  }
+  70% {
+    transform: translate3d(-5px, -16px, 0) scale(1.25);
+    opacity: 0.38;
+  }
+  100% {
+    transform: translate3d(4px, -28px, 0) scale(1.7);
+    opacity: 0;
+  }
+}
+
+@keyframes emberFlicker {
+  0%, 100% {
+    transform: scale(0.88);
+    opacity: 0.78;
+  }
+  50% {
+    transform: scale(1.16);
+    opacity: 1;
+  }
+}
+
+@keyframes shipSinkSubmerge {
+  0% {
+    transform: scale(1.06) rotate(0deg) translateY(0px);
+    opacity: 1;
+    filter: brightness(1.45) sepia(0.25);
+  }
+  18% {
+    transform: scale(1.04) rotate(-3.5deg) translateY(-2px);
+    opacity: 1;
+    filter: brightness(1.3) contrast(1.2);
+  }
+  38% {
+    transform: scale(0.99) rotate(4.2deg) translateY(3px);
+    opacity: 0.94;
+    filter: brightness(0.95) saturate(0.75);
+  }
+  68% {
+    transform: scale(0.91) rotate(-5deg) translateY(8px);
+    opacity: 0.72;
+    filter: brightness(0.68) saturate(0.5);
+  }
+  100% {
+    transform: scale(0.87) rotate(-2.5deg) translateY(5px);
+    opacity: 0.56;
+    filter: brightness(0.62) saturate(0.42);
+  }
+}
+
+@keyframes sinkFoamRing {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.38);
+    opacity: 0;
+  }
+}
+
+@keyframes bubblePop {
+  0% {
+    transform: translateY(4px) scale(0.35);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateY(-12px) scale(1.1);
+    opacity: 0;
+  }
+}
+
+@keyframes sunkBannerIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -44%) scale(0.86);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.03);
+  }
+  82% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -54%) scale(0.96);
+  }
+}
+
+@keyframes boardShake {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  20% {
+    transform: translate3d(-5px, 3px, 0);
+  }
+  40% {
+    transform: translate3d(5px, -3px, 0);
+  }
+  65% {
+    transform: translate3d(-3px, -2px, 0);
+  }
+  85% {
+    transform: translate3d(2px, 2px, 0);
+  }
+}
+
+@keyframes boardShakeHeavy {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  12% {
+    transform: translate3d(-9px, 5px, 0);
+  }
+  26% {
+    transform: translate3d(9px, -6px, 0);
+  }
+  42% {
+    transform: translate3d(-7px, -4px, 0);
+  }
+  58% {
+    transform: translate3d(6px, 5px, 0);
+  }
+  76% {
+    transform: translate3d(-4px, 2px, 0);
+  }
+  90% {
+    transform: translate3d(2px, -2px, 0);
+  }
+}
+
+.animate-splash-ripple {
+  animation: splashRipple 780ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-splash-plume {
+  animation: splashPlume 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-hit-burst {
+  animation: hitBurst 380ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-explosion-flash {
+  animation: explosionFlash 720ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-explosion-ring {
+  animation: explosionRing 680ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-smoke-rise {
+  animation: smokeRise 2.4s ease-out infinite;
+}
+
+.animate-smoke-rise-alt {
+  animation: smokeRiseAlt 2.9s ease-out infinite;
+}
+
+.animate-ember-flicker {
+  animation: emberFlicker 1.1s ease-in-out infinite;
+}
+
+.animate-ship-sink {
+  animation: shipSinkSubmerge 1.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-sink-foam {
+  animation: sinkFoamRing 1.6s ease-out forwards;
+}
+
+.animate-bubble-pop {
+  animation: bubblePop 1.4s ease-out infinite;
+}
+
+.animate-sunk-banner {
+  animation: sunkBannerIn 2.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-board-shake {
+  animation: boardShake 320ms ease-out;
+}
+
+.animate-board-shake-heavy {
+  animation: boardShakeHeavy 520ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-token-hop,
+  .animate-dice-roll,
+  .animate-card-pop,
+  .animate-bill-fly,
+  .animate-spotlight,
+  .animate-splash-ripple,
+  .animate-splash-plume,
+  .animate-hit-burst,
+  .animate-explosion-flash,
+  .animate-explosion-ring,
+  .animate-smoke-rise,
+  .animate-smoke-rise-alt,
+  .animate-ember-flicker,
+  .animate-ship-sink,
+  .animate-sink-foam,
+  .animate-bubble-pop,
+  .animate-sunk-banner,
+  .animate-board-shake,
+  .animate-board-shake-heavy {
+    animation: none !important;
+  }
+}

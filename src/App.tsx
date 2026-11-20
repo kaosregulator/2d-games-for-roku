@@ -15,6 +15,8 @@ import {
   VictoryModal,
 } from './components/GameModals';
 import { TitleScreen, type TabletopGameChoice } from './components/TitleScreen';
+import { JeopardyGame } from './components/JeopardyGame';
+import type { JeopardyLaunchConfig } from './jeopardy/types';
 import {
   decideAiAuctionMove,
   decideAiBuyProperty,
@@ -85,6 +87,12 @@ const DEFAULT_FURBY_CONFIG: FurbyLaunchConfig = {
   name: 'May-May',
 };
 
+const DEFAULT_JEOPARDY_CONFIG: JeopardyLaunchConfig = {
+  playerName: 'Player 1',
+  episode: 'episode_1',
+  answerMode: 'choices',
+};
+
 function computeCameraFocusForSpace(spaceIndex: number, zoom: number, label: string): CameraFocus {
   const geom = SPACE_GEOMETRIES[spaceIndex];
   const world = boardToWorld(geom.centerX, geom.centerY);
@@ -101,21 +109,32 @@ function computeCameraFocusForSpace(spaceIndex: number, zoom: number, label: str
 export default function App() {
   const urlParams = useMemo(() => {
     if (typeof window === 'undefined') {
-      return { autostart: false, game: 'monopoly' as TabletopGameChoice, room: '' };
+      return {
+        autostart: false,
+        game: 'monopoly' as TabletopGameChoice,
+        room: '',
+        jeopardyRound: 'jeopardy' as 'jeopardy' | 'double_jeopardy',
+      };
     }
     const sp = new URLSearchParams(window.location.search);
     const room = (sp.get('room') ?? '').toUpperCase().trim();
     const gameParam = sp.get('game');
     const game: TabletopGameChoice =
-      gameParam === 'furby'
-        ? 'furby'
-        : gameParam === 'battleship' || room
-          ? 'battleship'
-          : 'monopoly';
+      gameParam === 'jeopardy'
+        ? 'jeopardy'
+        : gameParam === 'furby'
+          ? 'furby'
+          : gameParam === 'battleship' || room
+            ? 'battleship'
+            : 'monopoly';
     return {
       autostart: sp.get('autostart') === '1',
       game,
       room,
+      jeopardyRound:
+        sp.get('round') === 'double'
+          ? ('double_jeopardy' as const)
+          : ('jeopardy' as const),
     };
   }, []);
 
@@ -141,6 +160,10 @@ export default function App() {
   const [furbyConfig, setFurbyConfig] = useState<FurbyLaunchConfig>(DEFAULT_FURBY_CONFIG);
   const [furbyInstanceKey, setFurbyInstanceKey] = useState(1);
 
+  // Jeopardy launch config
+  const [jeopardyConfig, setJeopardyConfig] = useState<JeopardyLaunchConfig>(DEFAULT_JEOPARDY_CONFIG);
+  const [jeopardyInstanceKey, setJeopardyInstanceKey] = useState(1);
+
   // Action Cam & visual beat state (Monopoly)
   const [cameraMode, setCameraMode] = useState<CameraMode>('action');
   const [cameraOverride, setCameraOverride] = useState<CameraFocus | null>(null);
@@ -160,14 +183,15 @@ export default function App() {
 
   const isPlayingBattleship = shellState !== 'title' && activeGame === 'battleship';
   const isPlayingFurby = shellState !== 'title' && activeGame === 'furby';
+  const isPlayingJeopardy = shellState !== 'title' && activeGame === 'jeopardy';
   const isPlayingMonopoly = shellState !== 'title' && activeGame === 'monopoly';
 
-  // Sync document.body.dataset.state when on Title or Monopoly (Battleship & Furby manage their own playing/paused/gameover)
+  // Sync document.body.dataset.state when on Title or Monopoly (Battleship, Furby & Jeopardy manage their own playing/paused/gameover)
   useEffect(() => {
-    if (!isPlayingBattleship && !isPlayingFurby) {
+    if (!isPlayingBattleship && !isPlayingFurby && !isPlayingJeopardy) {
       document.body.dataset.state = shellState;
     }
-  }, [shellState, isPlayingBattleship, isPlayingFurby]);
+  }, [shellState, isPlayingBattleship, isPlayingFurby, isPlayingJeopardy]);
 
   // Transition into gameover shell state when a Monopoly winner is crowned
   useEffect(() => {
@@ -288,6 +312,20 @@ export default function App() {
       setFurbyInstanceKey((k) => k + 1);
       setActiveGame('furby');
       setSelectedGame('furby');
+      setShellState('playing');
+      document.body.dataset.state = 'playing';
+    },
+    [clearPendingTimers]
+  );
+
+  const handleStartJeopardy = useCallback(
+    (config: JeopardyLaunchConfig) => {
+      clearPendingTimers();
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      setJeopardyConfig(config);
+      setJeopardyInstanceKey((k) => k + 1);
+      setActiveGame('jeopardy');
+      setSelectedGame('jeopardy');
       setShellState('playing');
       document.body.dataset.state = 'playing';
     },
@@ -483,8 +521,10 @@ export default function App() {
             handleStartMonopoly();
           } else if (selectedGame === 'battleship') {
             handleStartBattleship(DEFAULT_BATTLESHIP_RULES, null);
-          } else {
+          } else if (selectedGame === 'furby') {
             handleStartFurby(DEFAULT_FURBY_CONFIG);
+          } else {
+            handleStartJeopardy(DEFAULT_JEOPARDY_CONFIG);
           }
         }
         return;
@@ -557,6 +597,7 @@ export default function App() {
     handleStartMonopoly,
     handleStartBattleship,
     handleStartFurby,
+    handleStartJeopardy,
     handleRollDice,
   ]);
 
@@ -611,6 +652,13 @@ export default function App() {
           config={furbyConfig}
           onReturnTitle={handleReturnTitle}
         />
+      ) : isPlayingJeopardy ? (
+        <JeopardyGame
+          key={jeopardyInstanceKey}
+          config={jeopardyConfig}
+          initialRound={urlParams.jeopardyRound}
+          onReturnTitle={handleReturnTitle}
+        />
       ) : (
         /* Full-Viewport 60fps Action Cam Monopoly Tabletop (also serves as live backdrop for Title Screen) */
         <ActionCamViewport
@@ -631,7 +679,7 @@ export default function App() {
         />
       )}
 
-      {/* Title Screen Overlay with Monopoly / Battleship / Furby Game Picker */}
+      {/* Title Screen Overlay with Monopoly / Battleship / Furby / Jeopardy! Game Picker */}
       {shellState === 'title' && (
         <TitleScreen
           selectedGame={selectedGame}
@@ -642,6 +690,7 @@ export default function App() {
           initialRoomCode={urlParams.room}
           onStartBattleship={handleStartBattleship}
           onStartFurby={handleStartFurby}
+          onStartJeopardy={handleStartJeopardy}
         />
       )}
 

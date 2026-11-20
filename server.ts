@@ -116,6 +116,242 @@ async function startServer() {
     });
   });
 
+  // Cached proxy for real Wikipedia/Wikimedia Commons & Internet Archive images (90s Nostalgia Jeopardy!)
+  interface CachedMediaEntry {
+    contentType: string;
+    buffer: Buffer;
+    cachedAt: number;
+  }
+  const mediaCache = new Map<string, CachedMediaEntry>();
+  const MEDIA_USER_AGENT = 'TabletopSuite90sJeopardy/1.0 (https://localhost:3000)';
+
+  app.get('/api/nostalgia-media', async (req, res) => {
+    const source = req.query.source === 'archive' ? 'archive' : 'wiki';
+    const rawId = String(req.query.id || '').trim();
+    if (
+      !rawId ||
+      rawId.length > 180 ||
+      rawId.includes('..') ||
+      !/^[\p{L}\p{N}_().,'&%:\-/ !?–—]+$/u.test(rawId)
+    ) {
+      res.status(400).json({ error: 'Invalid media identifier' });
+      return;
+    }
+
+    const cacheKey = `${source}:${rawId}`;
+    const existing = mediaCache.get(cacheKey);
+    if (existing && Date.now() - existing.cachedAt < 6 * 60 * 60 * 1000) {
+      res.setHeader('Content-Type', existing.contentType);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.send(existing.buffer);
+      return;
+    }
+
+    try {
+      let imageUrl: string | null = null;
+      if (source === 'archive') {
+        imageUrl = `https://archive.org/services/img/${encodeURIComponent(rawId)}`;
+      } else {
+        let decodedTitle = rawId;
+        try {
+          decodedTitle = decodeURIComponent(rawId);
+        } catch {
+          decodedTitle = rawId;
+        }
+        const normalizedTitle = decodedTitle.replace(/ /g, '_');
+        const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(normalizedTitle)}`;
+        const summaryRes = await fetch(summaryUrl, {
+          headers: { 'User-Agent': MEDIA_USER_AGENT, Accept: 'application/json' },
+          signal: AbortSignal.timeout(5500),
+        });
+        if (summaryRes.ok) {
+          const data = (await summaryRes.json()) as {
+            thumbnail?: { source?: string };
+            originalimage?: { source?: string };
+          };
+          imageUrl = data.thumbnail?.source || data.originalimage?.source || null;
+        }
+
+        // Fallback to MediaWiki pageimages query if REST summary had no thumbnail
+        if (!imageUrl) {
+          const queryUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(decodedTitle)}&prop=pageimages&format=json&pithumbsize=640&redirects=1`;
+          const qRes = await fetch(queryUrl, {
+            headers: { 'User-Agent': MEDIA_USER_AGENT, Accept: 'application/json' },
+            signal: AbortSignal.timeout(5500),
+          });
+          if (qRes.ok) {
+            const qData = (await qRes.json()) as {
+              query?: { pages?: Record<string, { thumbnail?: { source?: string } }> };
+            };
+            const pages = qData.query?.pages ? Object.values(qData.query.pages) : [];
+            imageUrl = pages[0]?.thumbnail?.source || null;
+          }
+        }
+      }
+
+      if (!imageUrl) {
+        res.status(404).json({ error: 'Image not found' });
+        return;
+      }
+
+      const imgRes = await fetch(imageUrl, {
+        headers: { 'User-Agent': MEDIA_USER_AGENT },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(6500),
+      });
+
+      if (!imgRes.ok) {
+        res.status(404).json({ error: 'Upstream image unavailable' });
+        return;
+      }
+
+      const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+      if (!contentType.startsWith('image/')) {
+        res.status(404).json({ error: 'Upstream response was not an image' });
+        return;
+      }
+
+      const arrayBuf = await imgRes.arrayBuffer();
+      const buffer = Buffer.from(arrayBuf);
+      if (buffer.length > 0 && buffer.length < 4 * 1024 * 1024) {
+        if (mediaCache.size > 120) {
+          const oldestKey = mediaCache.keys().next().value;
+          if (oldestKey) mediaCache.delete(oldestKey);
+        }
+        mediaCache.set(cacheKey, { contentType, buffer, cachedAt: Date.now() });
+      }
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.send(buffer);
+    } catch {
+      res.status(502).json({ error: 'Media fetch failed' });
+    }
+  });
+
+  // Streaming proxy for real Internet Archive 1990s MP4 videos with full HTTP Range support
+  interface CachedVideoResolution {
+    downloadUrl: string;
+    resolvedAt: number;
+  }
+  const videoUrlCache = new Map<string, CachedVideoResolution>();
+
+  app.get('/api/nostalgia-video', async (req, res) => {
+    const rawId = String(req.query.id || '').trim();
+    const rawFile = String(req.query.file || '').trim();
+    if (!rawId || rawId.length > 160 || !/^[A-Za-z0-9_.\-]+$/.test(rawId)) {
+      res.status(400).json({ error: 'Invalid archive video identifier' });
+      return;
+    }
+    if (rawFile && (rawFile.length > 220 || rawFile.includes('..') || rawFile.includes('/') || rawFile.includes('\\'))) {
+      res.status(400).json({ error: 'Invalid video filename' });
+      return;
+    }
+
+    const cacheKey = `${rawId}:${rawFile}`;
+    let targetUrl: string | null = null;
+    const cached = videoUrlCache.get(cacheKey);
+    if (cached && Date.now() - cached.resolvedAt < 6 * 60 * 60 * 1000) {
+      targetUrl = cached.downloadUrl;
+    }
+
+    try {
+      if (!targetUrl) {
+        let filename = rawFile;
+        if (!filename) {
+          const metaRes = await fetch(
+            `https://archive.org/metadata/${encodeURIComponent(rawId)}/files`,
+            {
+              headers: { 'User-Agent': MEDIA_USER_AGENT, Accept: 'application/json' },
+              signal: AbortSignal.timeout(6000),
+            }
+          );
+          if (metaRes.ok) {
+            const metaJson = (await metaRes.json()) as {
+              result?: Array<{ name?: string; size?: string | number }>;
+            };
+            const mp4 = (metaJson.result || []).find(
+              (f) => f.name && f.name.toLowerCase().endsWith('.mp4') && Number(f.size || 0) > 10000
+            );
+            if (mp4?.name) filename = mp4.name;
+          }
+        }
+
+        if (!filename) {
+          res.status(404).json({ error: 'Archive MP4 file not found' });
+          return;
+        }
+        targetUrl = `https://archive.org/download/${encodeURIComponent(rawId)}/${encodeURIComponent(filename)}`;
+      }
+
+      const upstreamHeaders: Record<string, string> = {
+        'User-Agent': MEDIA_USER_AGENT,
+      };
+      if (typeof req.headers.range === 'string') {
+        upstreamHeaders.Range = req.headers.range;
+      }
+
+      const upstream = await fetch(targetUrl, {
+        headers: upstreamHeaders,
+        redirect: 'follow',
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (!upstream.ok && upstream.status !== 206) {
+        videoUrlCache.delete(cacheKey);
+        res.status(upstream.status === 404 ? 404 : 502).json({ error: 'Archive video unavailable' });
+        return;
+      }
+
+      // Cache final resolved mirror URL so subsequent Range chunks skip the 302 hop
+      if (upstream.url && upstream.url.startsWith('https://')) {
+        if (videoUrlCache.size > 120) {
+          const first = videoUrlCache.keys().next().value;
+          if (first) videoUrlCache.delete(first);
+        }
+        videoUrlCache.set(cacheKey, { downloadUrl: upstream.url, resolvedAt: Date.now() });
+      }
+
+      res.status(upstream.status);
+      const ct = upstream.headers.get('content-type') || 'video/mp4';
+      res.setHeader('Content-Type', ct.includes('video') ? ct : 'video/mp4');
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+
+      const contentLength = upstream.headers.get('content-length');
+      if (contentLength) res.setHeader('Content-Length', contentLength);
+      const contentRange = upstream.headers.get('content-range');
+      if (contentRange) res.setHeader('Content-Range', contentRange);
+
+      if (!upstream.body) {
+        res.end();
+        return;
+      }
+
+      const { Readable } = await import('node:stream');
+      const nodeStream = Readable.fromWeb(
+        upstream.body as unknown as import('node:stream/web').ReadableStream
+      );
+      req.on('close', () => {
+        nodeStream.destroy();
+      });
+      nodeStream.on('error', () => {
+        if (!res.headersSent) {
+          res.status(502).end();
+        } else {
+          res.end();
+        }
+      });
+      nodeStream.pipe(res);
+    } catch {
+      if (!res.headersSent) {
+        res.status(502).json({ error: 'Archive video stream failed' });
+      } else {
+        res.end();
+      }
+    }
+  });
+
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({

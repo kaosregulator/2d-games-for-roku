@@ -10,8 +10,35 @@ import { AGED_LEATHER_TEXTURE, WALNUT_BOARD_TEXTURE } from './BattleshipGrid';
 import { NavalShipSvg } from './BattleshipShips';
 import type { FurbyLaunchConfig } from './FurbyExperience';
 import { SilverTokenIcon } from './SilverTokens';
+import type {
+  JeopardyAnswerMode,
+  JeopardyEpisodePreset,
+  JeopardyLaunchConfig,
+} from '../jeopardy/types';
 
-export type TabletopGameChoice = 'monopoly' | 'battleship' | 'furby';
+export type TabletopGameChoice = 'monopoly' | 'battleship' | 'furby' | 'jeopardy';
+
+function JeopardyTabIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+      <rect x="2.5" y="4" width="23" height="17" rx="2.5" fill="#060CE9" stroke="#F5C242" strokeWidth="1.7" />
+      <line x1="9.5" y1="4.5" x2="9.5" y2="20.5" stroke="#1E3A8A" strokeWidth="1" />
+      <line x1="18.5" y1="4.5" x2="18.5" y2="20.5" stroke="#1E3A8A" strokeWidth="1" />
+      <text
+        x="14"
+        y="16.2"
+        textAnchor="middle"
+        fill="#F5C242"
+        fontFamily="Oswald, sans-serif"
+        fontWeight="700"
+        fontSize="11.5"
+      >
+        $2K
+      </text>
+      <circle cx="14" cy="24.2" r="2.2" fill="#EF4444" stroke="#FDE047" strokeWidth="0.9" />
+    </svg>
+  );
+}
 
 function FurbyTabIcon() {
   return (
@@ -68,6 +95,7 @@ interface TitleScreenProps {
     onlineIntent: OnlineStartIntent | null
   ) => void;
   onStartFurby: (config: FurbyLaunchConfig) => void;
+  onStartJeopardy: (config: JeopardyLaunchConfig) => void;
 }
 
 /**
@@ -84,6 +112,7 @@ export function TitleScreen({
   initialRoomCode = '',
   onStartBattleship,
   onStartFurby,
+  onStartJeopardy,
 }: TitleScreenProps) {
   const takenTokens = new Set(configs.map((c) => c.token));
 
@@ -100,6 +129,11 @@ export function TitleScreen({
   // Furby 1999 collector unboxing setup state
   const [furbyCoatId, setFurbyCoatId] = useState<FurbyCoatId>('crystal_pink');
   const [furbyName, setFurbyName] = useState('May-May');
+
+  // 90s Nostalgia Jeopardy! setup state
+  const [jeopardyEpisode, setJeopardyEpisode] = useState<JeopardyEpisodePreset>('episode_1');
+  const [jeopardyAnswerMode, setJeopardyAnswerMode] = useState<JeopardyAnswerMode>('choices');
+  const [jeopardyPlayerName, setJeopardyPlayerName] = useState('Player 1');
 
   const setPlayerCount = (count: number) => {
     if (count === configs.length) return;
@@ -187,21 +221,31 @@ export function TitleScreen({
     });
   };
 
+  const launchJeopardy = () => {
+    onStartJeopardy({
+      playerName: jeopardyPlayerName.trim() || 'Player 1',
+      episode: jeopardyEpisode,
+      answerMode: jeopardyAnswerMode,
+    });
+  };
+
   return (
     <div
       data-testid="title-screen"
       className="fixed inset-0 z-40 flex flex-col items-center justify-between p-4 sm:p-6 overflow-y-auto"
       style={{
-        backgroundColor: '#160E0A',
+        backgroundColor: selectedGame === 'jeopardy' ? '#050A24' : '#160E0A',
         backgroundImage:
-          selectedGame === 'battleship' || selectedGame === 'furby'
-            ? `radial-gradient(ellipse at 50% 42%, rgba(28, 17, 10, 0.55) 0%, rgba(12, 7, 4, 0.9) 100%), url('${WALNUT_BOARD_TEXTURE}')`
-            : 'radial-gradient(ellipse at 50% 45%, rgba(16, 11, 8, 0.52) 0%, rgba(12, 8, 6, 0.86) 100%)',
+          selectedGame === 'jeopardy'
+            ? 'radial-gradient(ellipse at 50% 30%, rgba(16, 40, 185, 0.56) 0%, rgba(4, 8, 30, 0.96) 75%)'
+            : selectedGame === 'battleship' || selectedGame === 'furby'
+              ? `radial-gradient(ellipse at 50% 42%, rgba(28, 17, 10, 0.55) 0%, rgba(12, 7, 4, 0.9) 100%), url('${WALNUT_BOARD_TEXTURE}')`
+              : 'radial-gradient(ellipse at 50% 45%, rgba(16, 11, 8, 0.52) 0%, rgba(12, 8, 6, 0.86) 100%)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
     >
-      {/* Top Game Picker Bar: Monopoly | Battleship | Furby */}
+      {/* Top Game Picker Bar: Monopoly | Battleship | Furby | Jeopardy! */}
       <div
         role="tablist"
         aria-label="Choose Tabletop Game"
@@ -257,28 +301,53 @@ export function TitleScreen({
           <FurbyTabIcon />
           <span>Furby</span>
         </button>
+
+        <button
+          type="button"
+          role="tab"
+          data-testid="tab-jeopardy"
+          aria-selected={selectedGame === 'jeopardy'}
+          onClick={() => onSelectGame('jeopardy')}
+          className={`flex items-center gap-2 px-5 py-2 rounded-md text-sm font-display font-bold tracking-wider uppercase cursor-pointer transition-colors whitespace-nowrap ${
+            selectedGame === 'jeopardy'
+              ? 'bg-[#060CE9] text-[#F5C242] border border-[#F5C242]/90'
+              : 'text-amber-100/75 hover:text-amber-50 hover:bg-stone-900/70 border border-transparent'
+          }`}
+        >
+          <JeopardyTabIcon />
+          <span>Jeopardy!</span>
+        </button>
       </div>
 
       {/* Center Framed Heirloom Setup Plaque */}
       <div
         className="w-full max-w-[790px] rounded-lg px-6 py-5 sm:px-8 sm:py-6 my-3"
         style={
-          selectedGame === 'battleship' || selectedGame === 'furby'
+          selectedGame === 'jeopardy'
             ? {
-                backgroundColor: '#1E140F',
-                backgroundImage: `linear-gradient(160deg, rgba(30, 18, 12, 0.72), rgba(16, 10, 6, 0.88)), url('${AGED_LEATHER_TEXTURE}')`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                border: '2px solid #C49E54',
+                backgroundColor: 'rgba(6, 12, 46, 0.95)',
+                backgroundImage:
+                  'linear-gradient(160deg, rgba(10, 22, 92, 0.88), rgba(4, 8, 32, 0.96))',
+                border: '2px solid #F5C242',
                 boxShadow:
-                  '0 32px 84px rgba(0, 0, 0, 0.88), inset 0 0 0 1px rgba(255, 226, 163, 0.16)',
+                  '0 32px 84px rgba(0, 0, 0, 0.9), inset 0 0 0 1px rgba(245, 194, 66, 0.2)',
               }
-            : {
-                backgroundColor: 'rgba(24, 16, 12, 0.95)',
-                border: '2px solid #C49E54',
-                boxShadow:
-                  '0 32px 84px rgba(0, 0, 0, 0.88), inset 0 0 0 1px rgba(255, 226, 163, 0.14)',
-              }
+            : selectedGame === 'battleship' || selectedGame === 'furby'
+              ? {
+                  backgroundColor: '#1E140F',
+                  backgroundImage: `linear-gradient(160deg, rgba(30, 18, 12, 0.72), rgba(16, 10, 6, 0.88)), url('${AGED_LEATHER_TEXTURE}')`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  border: '2px solid #C49E54',
+                  boxShadow:
+                    '0 32px 84px rgba(0, 0, 0, 0.88), inset 0 0 0 1px rgba(255, 226, 163, 0.16)',
+                }
+              : {
+                  backgroundColor: 'rgba(24, 16, 12, 0.95)',
+                  border: '2px solid #C49E54',
+                  boxShadow:
+                    '0 32px 84px rgba(0, 0, 0, 0.88), inset 0 0 0 1px rgba(255, 226, 163, 0.14)',
+                }
         }
       >
         {selectedGame === 'monopoly' ? (
@@ -685,7 +754,7 @@ export function TitleScreen({
               </div>
             </div>
           </>
-        ) : (
+        ) : selectedGame === 'furby' ? (
           <>
             {/* Bespoke Inline SVG Vintage 1999 FURBY Collector Crest */}
             <div className="flex flex-col items-center text-center">
@@ -801,6 +870,159 @@ export function TitleScreen({
               </button>
             </div>
           </>
+        ) : (
+          <>
+            {/* Bespoke Inline SVG 1990s Studio JEOPARDY! Crest */}
+            <div className="flex flex-col items-center text-center">
+              <svg
+                viewBox="0 0 540 104"
+                className="w-full max-w-[440px] h-auto"
+                role="img"
+                aria-label="90s Nostalgia Jeopardy Game Show"
+              >
+                <path
+                  d="M28 14 L512 14 L526 28 L526 76 L512 90 L28 90 L14 76 L14 28 Z"
+                  fill="#060CE9"
+                  stroke="#F5C242"
+                  strokeWidth="3.5"
+                />
+                <path
+                  d="M34 20 L506 20 L518 32 L518 72 L506 84 L34 84 L22 72 L22 32 Z"
+                  fill="none"
+                  stroke="#93C5FD"
+                  strokeWidth="1.4"
+                  strokeOpacity="0.72"
+                />
+                <polygon points="44,41 47,49 55,52 47,55 44,63 41,55 33,52 41,49" fill="#F5C242" />
+                <polygon points="496,41 499,49 507,52 499,55 496,63 493,55 485,52 493,49" fill="#F5C242" />
+                <text
+                  x="270"
+                  y="68"
+                  textAnchor="middle"
+                  fill="#F5C242"
+                  fontFamily="Oswald, sans-serif"
+                  fontWeight="700"
+                  fontSize="50"
+                  letterSpacing="8"
+                  style={{ paintOrder: 'stroke fill', stroke: '#040826', strokeWidth: '4.5px' }}
+                >
+                  JEOPARDY!
+                </text>
+              </svg>
+
+              <p className="mt-1 font-display text-xs sm:text-sm tracking-[0.16em] text-sky-200 uppercase">
+                90s Nostalgia Edition · 28 Categories · Double Jeopardy to $2,000
+              </p>
+            </div>
+
+            {/* 28-Category Episode Selector */}
+            <div className="mt-4 border-t border-b border-[#3454D1]/50 py-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-sky-200">
+                  90s Vault Episode (7 Categories Per Round)
+                </span>
+                <span className="text-[11px] text-amber-200/90">
+                  Real Wikimedia &amp; Internet Archive Photos · Daily Doubles · Final Jeopardy
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {(
+                  [
+                    {
+                      id: 'episode_1' as JeopardyEpisodePreset,
+                      title: 'Episode 1 (14 Cats)',
+                      sub: 'SNICK, 90s Consoles, Disney, Grunge & more',
+                    },
+                    {
+                      id: 'episode_2' as JeopardyEpisodePreset,
+                      title: 'Episode 2 (14 Cats)',
+                      sub: 'TGIF, Cereal Box Toys, Sega, Dial-Up & more',
+                    },
+                    {
+                      id: 'shuffle_28' as JeopardyEpisodePreset,
+                      title: 'All-28 Shuffle',
+                      sub: '14 random categories from all 28 (140 clues)',
+                    },
+                  ] as const
+                ).map((ep) => (
+                  <button
+                    key={ep.id}
+                    type="button"
+                    data-testid={`jeopardy-ep-${ep.id}`}
+                    onClick={() => setJeopardyEpisode(ep.id)}
+                    className={`px-3.5 py-2.5 rounded text-left cursor-pointer border transition-colors ${
+                      jeopardyEpisode === ep.id
+                        ? 'bg-[#0D218A] border-[#F5C242] text-white'
+                        : 'bg-[#050A26]/85 border-[#253C96] text-slate-300 hover:border-[#6082F0]'
+                    }`}
+                  >
+                    <div className="text-sm font-bold text-[#F5C242]">{ep.title}</div>
+                    <div className="text-[11px] opacity-85 mt-0.5 leading-snug">{ep.sub}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Contestant Name + Answer Mode + Start Show CTA */}
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded bg-[#050A26]/85 border border-[#253C96] p-3">
+                <label htmlFor="jeopardy-player-name" className="text-xs text-sky-200 block mb-1.5">
+                  Contestant Nameplate
+                </label>
+                <input
+                  id="jeopardy-player-name"
+                  type="text"
+                  maxLength={16}
+                  value={jeopardyPlayerName}
+                  onChange={(e) => setJeopardyPlayerName(e.target.value)}
+                  className="w-full rounded bg-[#091242] border border-[#3B59B8] px-3 py-1.5 text-sm font-medium text-white focus:outline-none focus:border-[#F5C242]"
+                />
+              </div>
+
+              <div className="rounded bg-[#050A26]/85 border border-[#253C96] p-3">
+                <div className="text-xs text-sky-200 mb-1.5">Response Style</div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setJeopardyAnswerMode('choices')}
+                    className={`py-1.5 rounded text-xs font-semibold cursor-pointer ${
+                      jeopardyAnswerMode === 'choices'
+                        ? 'bg-[#F5C242] text-[#050A22]'
+                        : 'bg-[#0B1754] text-slate-200 hover:text-white'
+                    }`}
+                  >
+                    Multiple Choice
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setJeopardyAnswerMode('typed')}
+                    className={`py-1.5 rounded text-xs font-semibold cursor-pointer ${
+                      jeopardyAnswerMode === 'typed'
+                        ? 'bg-[#F5C242] text-[#050A22]'
+                        : 'bg-[#0B1754] text-slate-200 hover:text-white'
+                    }`}
+                  >
+                    Classic Type-In
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-xs text-sky-200/80">
+                Live 2D Host · Illuminated Buzzer Lockout · Round 1 ($1,000) &amp; Double Jeopardy ($2,000)
+              </div>
+              <button
+                type="button"
+                data-start="true"
+                data-testid="start-jeopardy-btn"
+                onClick={launchJeopardy}
+                className="w-full sm:w-auto px-8 py-3 rounded font-display text-base font-bold tracking-wider uppercase cursor-pointer transition-colors bg-[#F5C242] hover:bg-[#FBD160] text-[#050A22] border-2 border-amber-200 shadow-[0_10px_28px_rgba(0,0,0,0.65)] whitespace-nowrap"
+              >
+                Start Show
+              </button>
+            </div>
+          </>
         )}
       </div>
 
@@ -810,7 +1032,9 @@ export function TitleScreen({
           ? 'Space Roll / Continue · Drag & Scroll Free Camera · C Action Cam · O Full Board · P Pause'
           : selectedGame === 'battleship'
             ? 'Click Grid Deploy / Fire · Right-Click or R Rotate Ship · M Mute · P Pause'
-            : 'Click Box Unbox · Move Cursor Eye Tracking · Brush Fur Pet · Click Beak Feed · Drag Across Table · P Pause'}
+            : selectedGame === 'furby'
+              ? 'Click Box Unbox · Move Cursor Eye Tracking · Brush Fur Pet · Click Beak Feed · Drag Across Table · P Pause'
+              : 'Click Clue Select · Space Buzz In / Continue · 1-4 Answer · M Mute · P Pause'}
       </div>
     </div>
   );
